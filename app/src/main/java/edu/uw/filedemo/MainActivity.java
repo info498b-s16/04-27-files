@@ -1,7 +1,9 @@
 package edu.uw.filedemo;
 
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
+import android.os.Environment;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
@@ -11,6 +13,15 @@ import android.view.View;
 import android.widget.EditText;
 import android.widget.RadioButton;
 import android.widget.TextView;
+
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
+import java.io.FileReader;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.PrintWriter;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -32,10 +43,40 @@ public class MainActivity extends AppCompatActivity {
         EditText textEntry = (EditText)findViewById(R.id.textEntry); //what we're going to save
 
         if(externalButton.isChecked()){ //external storage
+            if(isExternalStorageWritable()){
+                //Filedir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOCUMENTS);
+                File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+                File file = new File(dir, "notes.txt");
+                Log.v(TAG, file.getAbsolutePath());
 
+                try {
+                    PrintWriter out = new PrintWriter(new FileWriter(file, true));
+                    out.println(textEntry.getText().toString());
+                    out.close();
+                }
+                catch(IOException ioe){
+                    Log.d(TAG, Log.getStackTraceString(ioe));
+                }
+
+            }
         }
         else { //internal storage
+            File dir = getFilesDir(); // /data/data/package.name/files
 
+            File file = new File(dir, "notes.txt");
+            Log.v(TAG, file.getAbsolutePath());
+
+            try {
+                PrintWriter out = new PrintWriter(new FileWriter(file, true));
+                out.println(textEntry.getText().toString());
+                out.close();
+            }
+            catch(IOException ioe){
+                Log.d(TAG, Log.getStackTraceString(ioe));
+            }
+
+            //FileOutputStream fos = openFileOutput("notes.txt", MODE_APPEND);
+            //fos.write()
         }
     }
 
@@ -46,10 +87,50 @@ public class MainActivity extends AppCompatActivity {
         textDisplay.setText(""); //clear initially
 
         if(externalButton.isChecked()){ //external storage
+            if(isExternalStorageWritable()){
+                File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+                File file = new File(dir, "notes.txt");
 
+                try {
+                    BufferedReader reader = new BufferedReader(new FileReader(file));
+
+                    StringBuilder text = new StringBuilder();
+
+                    //read the file
+                    String line = reader.readLine();
+                    while(line != null){
+                        text.append(line + "\n");
+                        line = reader.readLine();
+                    }
+
+                    textDisplay.setText(text.toString());
+                }
+                catch(IOException ioe){
+                    Log.d(TAG, Log.getStackTraceString(ioe));
+                }
+            }
         }
         else { //internal storage
+            File dir = getFilesDir();
+            File file = new File(dir, "notes.txt");
 
+            try {
+                BufferedReader reader = new BufferedReader(new FileReader(file));
+
+                StringBuilder text = new StringBuilder();
+
+                //read the file
+                String line = reader.readLine();
+                while(line != null){
+                    text.append(line + "\n");
+                    line = reader.readLine();
+                }
+
+                textDisplay.setText(text.toString());
+            }
+            catch(IOException ioe){
+                Log.d(TAG, Log.getStackTraceString(ioe));
+            }
         }
     }
 
@@ -57,14 +138,37 @@ public class MainActivity extends AppCompatActivity {
     public void shareFile(View v) {
         Log.v(TAG, "Sharing file...");
 
+        Uri fileUri = null;
         if(externalButton.isChecked()){ //external storage
-
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOCUMENTS);
+            File file = new File(dir, "notes.txt");
+            fileUri = Uri.fromFile(file);
         }
         else { //internal storage
-
+            File dir = getFilesDir();
+            File file = new File(dir, "notes.txt");
+            fileUri = Uri.fromFile(file);
         }
+
+        Intent intent = new Intent(Intent.ACTION_SEND);
+        intent.setType("text/plain");
+        intent.putExtra(Intent.EXTRA_STREAM, fileUri);
+
+        Intent chooser = Intent.createChooser(intent, "Share MY File");
+        if(intent.resolveActivity(getPackageManager()) != null){
+            startActivity(chooser);
+        }
+
     }
 
+
+    public boolean isExternalStorageWritable() {
+        String state = Environment.getExternalStorageState();
+        if(state.equals(Environment.MEDIA_MOUNTED)){
+            return true;
+        }
+        return false;
+    }
 
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
